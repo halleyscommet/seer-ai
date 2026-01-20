@@ -18,6 +18,9 @@ from .tracker import RobotTracker, RobotDetection
 from .video_processor import VideoProcessor
 
 
+_CONF = 0.5
+
+
 class ScoutingApp:
     """
     High-level app wrapper.
@@ -478,7 +481,7 @@ class ScoutingApp:
             # 1) Run robot detection + tracking + draw overlay in frame-space
             boxes_xywh = []
             if self.enable_robot_tracking.get():
-                detections = self.robot_detector.detect(frame)
+                detections = self.robot_detector.detect(frame, _CONF)
                 self.robot_tracker.update(detections)
                 
                 # Draw boxes for all active tracks

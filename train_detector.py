@@ -445,7 +445,7 @@ if __name__ == "__main__":
                 exp_name = arg.split('=', 1)[1]
 
         best_model = train_robot_detector(
-            dataset_yaml="dataset/data.yaml",
+            dataset_yaml="dataset/combined_data.yaml",
             output_dir="runs/detect",
             base_model=base_model,
             epochs=epochs,
@@ -460,7 +460,7 @@ if __name__ == "__main__":
     elif command == "evaluate":
         evaluate_model(
             model_path="models/yolov8m_robots.pt",
-            dataset_yaml="dataset/data.yaml"
+            dataset_yaml="dataset/combined_data.yaml"
         )
     
     elif command == "test":
