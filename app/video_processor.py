@@ -20,7 +20,7 @@ class VideoProcessor:
     Generates annotated output video with bounding boxes and track IDs.
     """
     
-    def __init__(self, model_path: str = "models/yolov8m_robots.pt"):
+    def __init__(self, model_path: str = "models/yolov8m_robots.pt", device: Optional[str] = None):
         """
         Initialize video processor.
         
@@ -33,7 +33,8 @@ class VideoProcessor:
             fallback = "yolov8m.pt"
             print(f"Info: model '{chosen_model}' not found. Falling back to '{fallback}'.")
             chosen_model = fallback
-        self.detector = RobotDetector(model_path=chosen_model)
+        self.detector = RobotDetector(model_path=chosen_model, device=device)
+        self.ultralytics_device = self.detector.device
         self.tracker = BoTSORTTracker(yolo_model=self.detector.model)
     
     def process_video(self, 
@@ -93,7 +94,11 @@ class VideoProcessor:
                     break
                 
                 # Run detection
-                tracks = self.tracker.update(frame, confidence_threshold=confidence_threshold)
+                tracks = self.tracker.update(
+                    frame,
+                    confidence_threshold=confidence_threshold,
+                    device=self.ultralytics_device,
+                )
 
                 # Draw tracked boxes on frame
                 self._draw_tracks(frame, tracks)

@@ -10,7 +10,8 @@ SOURCE=""
 MODEL="models/yolov8m_robots.pt"
 CONF="0.5"
 IMGSZ="640"
-DEVICE="0"
+DEVICE=""
+DEVICE_SET="0"
 TRACKER="botsort.yaml"
 NAME="track"
 PROJECT="runs_yolo"
@@ -21,7 +22,7 @@ while [ "$#" -gt 0 ]; do
     --model) MODEL="$2"; shift 2;;
     --conf) CONF="$2"; shift 2;;
     --imgsz) IMGSZ="$2"; shift 2;;
-    --device) DEVICE="$2"; shift 2;;
+    --device) DEVICE="$2"; DEVICE_SET="1"; shift 2;;
     --tracker) TRACKER="$2"; shift 2;;
     --name) NAME="$2"; shift 2;;
     --project) PROJECT="$2"; shift 2;;
@@ -33,6 +34,24 @@ while [ "$#" -gt 0 ]; do
       exit 2;;
   esac
 done
+
+if [ -n "${SEER_YOLO_DEVICE-}" ] && [ "$DEVICE_SET" = "0" ]; then
+  DEVICE="$SEER_YOLO_DEVICE"
+fi
+
+if [ -z "$DEVICE" ] && [ "$DEVICE_SET" = "0" ]; then
+  OS_NAME="$(uname)"
+  if [ "$OS_NAME" = "Darwin" ]; then
+    ARCH="$(uname -m)"
+    if [ "$ARCH" = "arm64" ]; then
+      DEVICE="mps"
+    else
+      DEVICE="cpu"
+    fi
+  else
+    DEVICE="0"
+  fi
+fi
 
 if [ -z "$SOURCE" ]; then
   echo "Missing --source (path to video)." 1>&2

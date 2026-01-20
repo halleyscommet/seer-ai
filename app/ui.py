@@ -43,7 +43,8 @@ class ScoutingApp:
         trained_model = cfg.model_path_preferred
         actual_model = trained_model if os.path.exists(trained_model) else cfg.model_path_fallback
         self.model_loaded = actual_model
-        self.robot_detector = RobotDetector(model_path=actual_model)
+        self.robot_detector = RobotDetector(model_path=actual_model, device=cfg.ultralytics_device)
+        self.ultralytics_device = self.robot_detector.device
         # UI var to show which model is loaded
         self.model_var = tk.StringVar(value=f"Model: {os.path.basename(actual_model)}")
 
@@ -57,7 +58,7 @@ class ScoutingApp:
         self.detection_conf_video = tk.DoubleVar(value=cfg.detection_conf_video)
         
         # Video processor for processing stored videos
-        self.video_processor = VideoProcessor(model_path=trained_model)
+        self.video_processor = VideoProcessor(model_path=trained_model, device=self.ultralytics_device)
         self.processing_video = False
 
         self.available_cams: List[int] = []
@@ -511,6 +512,7 @@ class ScoutingApp:
                 tracks = self.botsort_tracker.update(
                     frame,
                     confidence_threshold=float(self.detection_conf_live.get()),
+                    device=self.ultralytics_device,
                 )
 
                 for t in tracks:

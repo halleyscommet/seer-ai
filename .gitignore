@@ -26,10 +26,8 @@ Thumbs.db
 archive/
 
 runs/
-runs_1/
-runs_2/
-runs_yolo/
+runs_*/
 videos/
 dataset/
-dataset_1/
+dataset_*/
 cache/

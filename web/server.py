@@ -127,6 +127,7 @@ async def ws_ingest(websocket: WebSocket):
 
     model = YOLO(model_path)
     tracker = BoTSORTTracker(model, tracker_yaml=cfg.ultralytics_tracker_yaml)
+    device = cfg.ultralytics_device
 
     try:
         while True:
@@ -157,7 +158,7 @@ async def ws_ingest(websocket: WebSocket):
                 await websocket.send_json({"type": "error", "message": "Failed to decode frame"})
                 continue
 
-            tracks = tracker.update(frame, confidence_threshold=float(conf))
+            tracks = tracker.update(frame, confidence_threshold=float(conf), device=device)
             _draw_tracks(frame, tracks)
 
             tracks_json = [

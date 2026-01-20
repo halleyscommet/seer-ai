@@ -40,6 +40,14 @@ def _getenv_int(name: str, default: int) -> int:
         return default
 
 
+def _getenv_str(name: str, default: Optional[str]) -> Optional[str]:
+    val = os.getenv(name)
+    if val is None:
+        return default
+    val = val.strip()
+    return val if val else default
+
+
 @dataclass(frozen=True)
 class AppConfig:
     # TBA
@@ -62,6 +70,10 @@ class AppConfig:
 
     # Tracking (Ultralytics)
     ultralytics_tracker_yaml: str
+
+    # Runtime device selection (Ultralytics)
+    # Examples: "mps" (Apple Metal), "cpu", "0" (CUDA device 0)
+    ultralytics_device: Optional[str]
 
 
 class Config:
@@ -98,6 +110,9 @@ class Config:
 
                 # Ultralytics tracker
                 ultralytics_tracker_yaml=os.getenv("ULTRALYTICS_TRACKER_YAML", "botsort.yaml"),
+
+                # Device (Ultralytics)
+                ultralytics_device=_getenv_str("ULTRALYTICS_DEVICE", None),
             )
         return cls._cfg
 
