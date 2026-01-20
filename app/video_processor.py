@@ -11,7 +11,7 @@ from typing import Optional, Callable
 import os
 
 from .robot_detector import RobotDetector
-from .tracker import RobotTracker
+from .ultralytics_tracker import BoTSORTTracker
 
 
 class VideoProcessor:
@@ -34,7 +34,7 @@ class VideoProcessor:
             print(f"Info: model '{chosen_model}' not found. Falling back to '{fallback}'.")
             chosen_model = fallback
         self.detector = RobotDetector(model_path=chosen_model)
-        self.tracker = RobotTracker()
+        self.tracker = BoTSORTTracker(yolo_model=self.detector.model)
     
     def process_video(self, 
                      input_path: str, 
@@ -93,16 +93,13 @@ class VideoProcessor:
                     break
                 
                 # Run detection
-                detections = self.detector.detect(frame, confidence_threshold)
-                
-                # Update tracker
-                self.tracker.update(detections)
-                
-                # Draw detections and tracks on frame
-                self._draw_tracks(frame)
+                tracks = self.tracker.update(frame, confidence_threshold=confidence_threshold)
+
+                # Draw tracked boxes on frame
+                self._draw_tracks(frame, tracks)
                 
                 # Draw info overlay
-                self._draw_overlay(frame, frame_count, total_frames, len(self.tracker.tracks))
+                self._draw_overlay(frame, frame_count, total_frames, len(tracks))
                 
                 # Write frame
                 out.write(frame)
@@ -119,7 +116,7 @@ class VideoProcessor:
         
         return output_path
     
-    def _draw_tracks(self, frame) -> None:
+    def _draw_tracks(self, frame, tracks) -> None:
         """
         Draw bounding boxes and track IDs on frame.
         """
@@ -135,36 +132,17 @@ class VideoProcessor:
             (255, 128, 0),  # Light blue
         ]
         
-        for track_id, track in self.tracker.tracks.items():
-            if not track.positions:
-                continue
-            
-            # Get bounding box from last detection, or estimate from center
-            if track.last_bbox:
-                x1, y1, x2, y2 = map(int, track.last_bbox)
-            else:
-                cx, cy = track.positions[-1]
-                w, h = 40, 50  # Default size
-                x1 = int(cx - w / 2)
-                y1 = int(cy - h / 2)
-                x2 = int(cx + w / 2)
-                y2 = int(cy + h / 2)
-            
+        for t in tracks:
+            x1, y1, x2, y2 = map(int, t.bbox_xyxy)
+
             # Assign color based on track ID for consistency
-            color = track_colors[track_id % len(track_colors)]
-            
-            # Override with alliance color if detected
-            if track.bumper_color == "red":
-                color = (0, 0, 255)  # Red
-            elif track.bumper_color == "blue":
-                color = (255, 0, 0)  # Blue
+            color = track_colors[t.track_id % len(track_colors)]
             
             # Draw bounding box
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
             
             # Draw track ID and confidence
-            avg_conf = track.get_avg_confidence()
-            label = f"T{track_id} ({avg_conf:.2f})"
+            label = f"T{t.track_id} ({t.confidence:.2f})"
             
             # Background for text
             (text_w, text_h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
@@ -172,20 +150,7 @@ class VideoProcessor:
             cv2.putText(frame, label, (x1 + 2, y1 - 5),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
             
-            # Draw track history (trail) - last 30 positions
-            if len(track.positions) > 1:
-                recent_positions = track.positions[-30:]
-                for i in range(len(recent_positions) - 1):
-                    # Fade trail: older = thinner and more transparent
-                    alpha = (i + 1) / len(recent_positions)
-                    thickness = max(1, int(alpha * 3))
-                    pt1 = tuple(map(int, recent_positions[i]))
-                    pt2 = tuple(map(int, recent_positions[i + 1]))
-                    cv2.line(frame, pt1, pt2, color, thickness)
-                
-                # Draw small dot at current center
-                cx, cy = track.positions[-1]
-                cv2.circle(frame, (int(cx), int(cy)), 3, color, -1)
+            # Note: Ultralytics tracker does not expose per-track history here.
     
     def _draw_overlay(self, frame, frame_num: int, total_frames: int, num_tracks: int) -> None:
         """Draw info overlay on frame."""
@@ -206,4 +171,4 @@ class VideoProcessor:
     
     def reset_tracker(self) -> None:
         """Reset the tracker for a new video."""
-        self.tracker = RobotTracker()
+        self.tracker.reset()

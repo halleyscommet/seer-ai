@@ -14,7 +14,7 @@ from .config import Config
 from .tba_downloader import TBADownloader
 from .cache import CacheManager
 from .robot_detector import RobotDetector
-from .tracker import RobotTracker, RobotDetection
+from .ultralytics_tracker import BoTSORTTracker
 from .video_processor import VideoProcessor
 
 
@@ -30,6 +30,7 @@ class ScoutingApp:
       - data to model.py
     """
     def __init__(self) -> None:
+        cfg = Config.get()
         self.root = tk.Tk()
         self.root.title("Watchdog AI - Scouting Base UI")
         self.root.geometry("1200x760")
@@ -39,14 +40,21 @@ class ScoutingApp:
         self.vs = VideoStream()
 
         import os
-        trained_model = "models/yolov8m_robots.pt"
-        actual_model = trained_model if os.path.exists(trained_model) else "yolov8m.pt"
+        trained_model = cfg.model_path_preferred
+        actual_model = trained_model if os.path.exists(trained_model) else cfg.model_path_fallback
         self.model_loaded = actual_model
         self.robot_detector = RobotDetector(model_path=actual_model)
         # UI var to show which model is loaded
         self.model_var = tk.StringVar(value=f"Model: {os.path.basename(actual_model)}")
-        self.robot_tracker = RobotTracker()
-        self.enable_robot_tracking = tk.BooleanVar(value=True)
+
+        # BoT-SORT tracker via Ultralytics
+        self.botsort_tracker = BoTSORTTracker(
+            yolo_model=self.robot_detector.model,
+            tracker_yaml=cfg.ultralytics_tracker_yaml,
+        )
+        self.enable_robot_tracking = tk.BooleanVar(value=cfg.tracking_enabled_default)
+        self.detection_conf_live = tk.DoubleVar(value=cfg.detection_conf_live)
+        self.detection_conf_video = tk.DoubleVar(value=cfg.detection_conf_video)
         
         # Video processor for processing stored videos
         self.video_processor = VideoProcessor(model_path=trained_model)
@@ -118,9 +126,25 @@ class ScoutingApp:
         self._build_camera_panel(right)
         self._build_tba_panel(right)
         self._build_session_panel(right)
+        self._build_detection_panel(right)
         self._build_video_processor_panel(right)
         self._build_stats_panel(right)
         self._build_export_panel(right)
+
+    def _build_detection_panel(self, parent: ttk.Frame) -> None:
+        box = ttk.Labelframe(parent, text="Detection")
+        box.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Label(box, text="Confidence").pack(anchor="w", padx=8, pady=(8, 0))
+        self._conf_label_var = tk.StringVar(value=f"{self.detection_conf_live.get():.2f}")
+        ttk.Label(box, textvariable=self._conf_label_var).pack(anchor="w", padx=8, pady=(0, 2))
+
+        scale = ttk.Scale(box, from_=0.05, to=0.95, variable=self.detection_conf_live)
+        scale.pack(fill=tk.X, padx=8, pady=(0, 8))
+        self.detection_conf_live.trace_add(
+            "write",
+            lambda *_: self._conf_label_var.set(f"{self.detection_conf_live.get():.2f}"),
+        )
 
     def _build_camera_panel(self, parent: ttk.Frame) -> None:
         box = ttk.Labelframe(parent, text="Camera")
@@ -252,11 +276,14 @@ class ScoutingApp:
             messagebox.showerror("Camera", f"Failed to open camera {self.selected_cam_index}.")
             return
 
+        # New camera session: reset tracker state so IDs start clean.
+        self.botsort_tracker.reset()
         self.vs.start()
         self.status_var.set(f"Camera {self.selected_cam_index} started.")
 
     def _stop_camera(self) -> None:
         self.vs.close()
+        self.botsort_tracker.reset()
         self.status_var.set("Camera stopped.")
 
     # ---------------- TBA controls ----------------
@@ -457,7 +484,7 @@ class ScoutingApp:
             output_path = self.video_processor.process_video(
                 input_path=file_path,
                 output_path=None,
-                confidence_threshold=0.5,
+                confidence_threshold=float(self.detection_conf_video.get()),
                 progress_callback=progress_callback
             )
             
@@ -481,24 +508,29 @@ class ScoutingApp:
             # 1) Run robot detection + tracking + draw overlay in frame-space
             boxes_xywh = []
             if self.enable_robot_tracking.get():
-                detections = self.robot_detector.detect(frame, _CONF)
-                self.robot_tracker.update(detections)
-                
-                # Draw boxes for all active tracks
-                for track_id, track in self.robot_tracker.tracks.items():
-                    if track.positions:
-                        cx, cy = track.positions[-1]
-                        # Estimate box from track history (use average dimensions)
-                        if len(track.positions) > 1:
-                            # Simple box approximation: 40x40 centered at position
-                            w, h = 40, 40
-                            x = int(cx - w / 2)
-                            y = int(cy - h / 2)
-                            boxes_xywh.append((x, y, w, h))
-                            # Draw with track ID
-                            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                            cv2.putText(frame, f"ID:{track_id}", (x, y - 5),
-                                      cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                tracks = self.botsort_tracker.update(
+                    frame,
+                    confidence_threshold=float(self.detection_conf_live.get()),
+                )
+
+                for t in tracks:
+                    x1, y1, x2, y2 = map(int, t.bbox_xyxy)
+                    x = x1
+                    y = y1
+                    w = max(1, x2 - x1)
+                    h = max(1, y2 - y1)
+                    boxes_xywh.append((x, y, w, h))
+
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.putText(
+                        frame,
+                        f"ID:{t.track_id}",
+                        (x1, max(0, y1 - 5)),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5,
+                        (0, 255, 0),
+                        1,
+                    )
 
             # 2) Convert to PIL for display
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

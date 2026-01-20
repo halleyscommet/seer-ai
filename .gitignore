@@ -22,8 +22,13 @@ env/
 .DS_Store
 Thumbs.db
 
+# Local cleanup/archive
+archive/
+
 runs/
 runs_1/
+runs_2/
+runs_yolo/
 videos/
 dataset/
 dataset_1/

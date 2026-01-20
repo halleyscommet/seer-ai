@@ -1,35 +1,30 @@
 #!/usr/bin/env python3
+"""Deprecated video processing CLI.
+
+This repo now standardizes CLI usage around the Ultralytics `yolo` command.
+
+Use instead:
+  - Predict (detect):  ./scripts/yolo_predict_video.(fish|sh) --source <video>
+  - Track (BoT-SORT):  ./scripts/yolo_track_video.(fish|sh) --source <video>
+
+If you want the UI's annotated/tracked export, use the UI's
+"Select & Process Video" button (it uses the custom tracker).
 """
-CLI to process a video using the trained robot detector and tracker.
-Usage:
-  python process_video.py --input videos/raw/your_video.mp4 [--output out.mp4] [--conf 0.5]
-"""
 
-import argparse
-import os
-from app.video_processor import VideoProcessor
+from __future__ import annotations
+
+import sys
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Process video with robot detector + tracker")
-    parser.add_argument("--input", required=True, help="Path to input video")
-    parser.add_argument("--output", default=None, help="Output video path (optional)")
-    parser.add_argument("--conf", type=float, default=0.5, help="Confidence threshold")
-    args = parser.parse_args()
-
-    # Prefer trained model
-    model_path = "models/yolov8m_robots.pt"
-    vp = VideoProcessor(model_path=model_path)
-
-    print(f"Processing video: {args.input}")
-    out = vp.process_video(
-        input_path=args.input,
-        output_path=args.output,
-        confidence_threshold=args.conf,
-        progress_callback=lambda cur, tot: print(f"\r{int(100*cur/tot) if tot>0 else 0}% ({cur}/{tot})", end="")
+def main(argv: list[str]) -> int:
+    print(
+        "process_video.py is deprecated.\n\n"
+        "Use:\n"
+        "  ./scripts/yolo_predict_video.(fish|sh) --source videos/raw/your_video.mp4 --model models/yolov8m_robots.pt\n"
+        "  ./scripts/yolo_track_video.(fish|sh)   --source videos/raw/your_video.mp4 --model models/yolov8m_robots.pt\n"
     )
-    print(f"\nSaved: {out}")
+    return 2
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main(sys.argv[1:]))
