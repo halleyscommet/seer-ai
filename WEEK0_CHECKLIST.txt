@@ -1,0 +1,222 @@
+✅ WEEK 0 TRAINING CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+Complete this during Week 0 event and after.
+
+
+📹 WEEK 0 EVENT (Friday/Saturday)
+═════════════════════════════════════════════════════════════════════════════════
+
+Before arriving at event:
+  ☐ Bring camera/phone with good video recording
+  ☐ Bring tripod or stable mounting
+  ☐ Make sure battery is charged
+  ☐ Check storage space (need 5-10 GB for videos)
+  ☐ Create videos/raw/ folder on laptop
+
+During event:
+  ☐ Position camera on side of field (best angle for bumpers)
+  ☐ Record multiple matches (5-10 total)
+  ☐ Vary: lighting, team compositions, field angles
+  ☐ Check recordings are clear (robots visible, bumpers readable)
+  ☐ Keep camera steady (use tripod if possible)
+
+After event:
+  ☐ Transfer videos to: videos/raw/
+  ☐ Verify all videos play correctly
+  ☐ Total footage should be 15-40 minutes
+  ☐ Rename logically (week0_match1.mp4, etc)
+
+
+📊 MONDAY EVENING (Week 1)
+═════════════════════════════════════════════════════════════════════════════════
+
+Frame extraction:
+  ☐ Open terminal
+  ☐ cd /Users/noah/Desktop/Code/watchdog-ai
+  ☐ Activate venv: set -x VIRTUAL_ENV (pwd)/.venv && set -x PATH $VIRTUAL_ENV/bin $PATH
+  ☐ Run: python train_detector.py extract
+  ☐ Verify: videos/frames/ has 1000+ images
+
+Dataset setup:
+  ☐ Create account at https://roboflow.com/
+  ☐ Create new project "FRC-Robots" (Object Detection)
+  ☐ Upload videos/frames/ to Roboflow
+  ☐ Wait for upload (can be 15-30 min)
+
+
+📝 MONDAY-TUESDAY EVENING (Annotation)
+═════════════════════════════════════════════════════════════════════════════════
+
+Annotating images in Roboflow:
+  ☐ Open image in Roboflow editor
+  ☐ Draw bounding boxes around each robot
+  ☐ Label as "robot" (only class needed)
+  ☐ Mark as complete
+  ☐ Move to next image
+  
+  Annotation tips:
+    ☐ Make boxes tight around robots
+    ☐ Include partial robots at edge
+    ☐ Double-check your work
+    ☐ Go faster after first 20 images
+  
+  Goal:
+    ☐ Annotate 300-500 images
+    ☐ Can skip some similar frames
+    ☐ Prioritize varied frames (different angles, distances)
+
+After annotation:
+  ☐ All images labeled in Roboflow
+  ☐ Click "Generate" to create dataset
+  ☐ Select "YOLOv8" format
+  ☐ Apply auto-augmentation
+  ☐ Wait for generation (2-5 min)
+  ☐ Download zip file
+  ☐ Extract to: dataset/
+  ☐ Verify structure: dataset/images/train/, val/, test/
+
+
+🤖 TUESDAY EVENING (Training)
+═════════════════════════════════════════════════════════════════════════════════
+
+Before training:
+  ☐ Verify dataset structure:
+      python -c "from train_detector import verify_dataset_structure; verify_dataset_structure('dataset')"
+  ☐ Should show: ✅ Dataset structure is valid!
+
+Training:
+  ☐ Run: python train_detector.py train
+  ☐ Training starts (takes 30 min - 2 hours depending on GPU)
+  ☐ Watch progress (should improve each epoch)
+  ☐ Training completes and saves: models/yolov8_robots.pt
+  ☐ Verify file exists and is >100MB
+
+Evaluation:
+  ☐ Run: python train_detector.py evaluate
+  ☐ Check mAP50:
+      ☐ If > 0.85: Excellent! ✓
+      ☐ If > 0.80: Good! ✓
+      ☐ If > 0.70: Okay, proceed but watch carefully
+      ☐ If < 0.70: Needs improvement (more data or training)
+
+Testing on video:
+  ☐ Run: python train_detector.py test videos/raw/week0_match1.mp4
+  ☐ Check output video in: runs/detect/robot_detector/
+  ☐ Watch video and verify:
+      ☐ Detects all robots
+      ☐ Few false positives
+      ☐ Confidence scores are high (>0.8 ideally)
+      ☐ Bounding boxes are tight
+
+
+🔧 TUESDAY-WEDNESDAY (Integration)
+═════════════════════════════════════════════════════════════════════════════════
+
+Update robot_detector.py:
+  ☐ Replace placeholder with actual YOLO code
+  ☐ Use: RobotDetector(model_path='models/yolov8_robots.pt')
+
+Update ui.py:
+  ☐ In __init__(), initialize real detector (not placeholder)
+  ☐ Verify robot tracking is enabled in camera panel
+
+Test in app:
+  ☐ Run main.py
+  ☐ Start camera
+  ☐ Enable "Robot tracking (6-robot mode)"
+  ☐ Verify tracking overlay shows on video
+  ☐ Check IDs stay consistent
+
+Test on Week 0 video:
+  ☐ Load Week 0 video in app
+  ☐ Run detection/tracking on video
+  ☐ Verify consistency with earlier test
+
+
+✨ READY FOR DEPLOYMENT
+═════════════════════════════════════════════════════════════════════════════════
+
+Before next event:
+  ☐ models/yolov8_robots.pt trained and tested
+  ☐ app/robot_detector.py integrated
+  ☐ ui.py using real detector
+  ☐ Tracking working on test footage
+  ☐ Tested on live camera (if available)
+  ☐ App ready to deploy
+
+You're ready to use in production! 🚀
+
+
+📋 COMMAND REFERENCE
+═════════════════════════════════════════════════════════════════════════════════
+
+Activate virtual environment (required for all commands):
+  set -x VIRTUAL_ENV (pwd)/.venv && set -x PATH $VIRTUAL_ENV/bin $PATH
+
+Extract frames from videos:
+  python train_detector.py extract
+
+Train model on annotated dataset:
+  python train_detector.py train
+
+Evaluate trained model:
+  python train_detector.py evaluate
+
+Test model on video file:
+  python train_detector.py test VIDEO_PATH
+
+Run main app with live camera/video:
+  python main.py
+
+
+🆘 IF SOMETHING GOES WRONG
+═════════════════════════════════════════════════════════════════════════════════
+
+Can't extract frames:
+  ☐ Check videos/raw/ exists
+  ☐ Check video files are readable (try playing in VLC)
+  ☐ Check free disk space (need 5+ GB)
+
+Can't upload to Roboflow:
+  ☐ Check internet connection
+  ☐ Try uploading smaller batch (100 images)
+  ☐ Check Roboflow website is up
+
+Training is very slow:
+  ☐ Check if using GPU: python -c "from ultralytics import YOLO; m = YOLO('yolov8m.pt')"
+  ☐ If CUDA not available, reduce batch size in train_detector.py
+  ☐ Reduce epochs (50 instead of 100)
+
+Model accuracy is low:
+  ☐ Need more annotated data (300+ minimum)
+  ☐ Check annotation quality (tight bounding boxes)
+  ☐ Retrain on more diverse footage
+  ☐ Use larger model (yolov8l instead of m)
+
+App crashes with detector:
+  ☐ Check model path: models/yolov8_robots.pt exists
+  ☐ Check CUDA compatibility (may need CPU mode)
+  ☐ Try test inference first: python train_detector.py test VIDEOFILE
+
+
+📞 TIMELINE SUMMARY
+═════════════════════════════════════════════════════════════════════════════════
+
+Friday/Saturday (Week 0):
+  → Record 5-10 matches (15-40 min footage)
+
+Monday evening (Week 0):
+  → Extract frames (5 min)
+  → Start annotation (1-2 hours)
+
+Tuesday (Week 1):
+  → Finish annotation
+  → Train model (30 min - 2 hours)
+  → Integrate into app (15 min)
+
+Wednesday (Week 1):
+  → Ready for next event! 🎉
+
+Total active work time: ~2-4 hours
+Result: Production-ready robot detector trained on YOUR footage

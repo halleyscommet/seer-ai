@@ -1,0 +1,457 @@
+🎥 TRAINING ON ACTUAL FRC FOOTAGE - COMPLETE GUIDE
+═════════════════════════════════════════════════════════════════════════════════
+
+Everything you need to train your robot detector on real Week 0 footage.
+
+
+WHAT YOU'LL BE DOING
+═════════════════════════════════════════════════════════════════════════════════
+
+1. Record FRC matches during Week 0 (Friday/Saturday)
+   → Camera positioned on side of field
+   → Capture 5-10 matches (15-40 minutes total)
+
+2. Extract frames from video (Monday evening, 5 minutes)
+   → Videos → Individual JPG frames (1000+ images)
+   → Use: python train_detector.py extract
+
+3. Annotate robots in frames (Monday-Tuesday, 1-2 hours)
+   → Use Roboflow web tool
+   → Draw bounding boxes around robots
+   → Label as class "robot"
+
+4. Train YOLOv8 model (Tuesday evening, 30 min - 2 hours)
+   → Use: python train_detector.py train
+   → Trains on YOUR annotated data
+   → Saves to: models/yolov8_robots.pt
+
+5. Integrate into app (Tuesday evening, 10 minutes)
+   → Point RobotDetector to trained model
+   → Update ui.py to use real detector
+   → Test on Week 0 footage
+
+Result: A custom robot detector trained 100% on your footage!
+Ready by Wednesday of Week 1!
+
+
+STEP-BY-STEP WALKTHROUGH
+═════════════════════════════════════════════════════════════════════════════════
+
+WEEK 0 (Friday/Saturday)
+────────────────────────────
+
+Recording at the event:
+
+1. Bring equipment:
+   □ Camera/phone with video recording
+   □ Tripod (highly recommended)
+   □ Fully charged battery
+   □ 10GB free storage
+
+2. Position camera:
+   • BEST: Side view of field (perpendicular to field edge)
+   • GOOD: 45° angle from corner
+   • AVOID: End-on view
+
+3. Record technique:
+   • Use tripod or stable mounting
+   • Check lighting (avoid backlighting)
+   • Record 5-10 different matches
+   • Vary: teams, times, field positions
+   • Keep camera steady during recording
+
+4. Verify quality:
+   • Robots clearly visible
+   • Bumpers (with numbers/colors) readable
+   • Smooth footage without blur
+   • Good lighting throughout
+
+5. Save videos:
+   • Transfer to laptop after event
+   • Save to: videos/raw/
+   • Name logically: week0_match1.mp4, week0_match2.mp4, etc.
+   • Total: 15-40 minutes of footage
+
+
+WEEK 1 - MONDAY EVENING
+────────────────────────────
+
+Extract frames from video:
+
+1. Open terminal in project folder:
+   cd /Users/noah/Desktop/Code/watchdog-ai
+
+2. Activate virtual environment:
+   set -x VIRTUAL_ENV (pwd)/.venv && set -x PATH $VIRTUAL_ENV/bin $PATH
+
+3. Run frame extraction:
+   python train_detector.py extract
+
+4. What it does:
+   ✓ Reads all .mp4 files from videos/raw/
+   ✓ Extracts every 5th frame (reduces redundancy)
+   ✓ Saves to: videos/frames/
+   ✓ Creates ~1000-2000 total frames
+
+5. Verify output:
+   ls videos/frames/ | wc -l
+   # Should show 1000+ files
+
+Example output:
+   Video: week0_match1.mp4
+     Total frames: 7200
+     FPS: 30
+     Duration: 240.0 seconds
+     Processed 7200 frames, saved 1440 frames ✓
+
+
+WEEK 1 - MONDAY-TUESDAY (Annotation)
+────────────────────────────────────
+
+Annotate images with Roboflow:
+
+1. Create account:
+   • Go to https://roboflow.com/
+   • Sign up (free account)
+
+2. Create project:
+   • Click "Create New Project"
+   • Name: "FRC-Robots"
+   • Type: "Object Detection"
+   • License: "CC-BY 4.0"
+   • Click "Create Public Project"
+
+3. Upload images:
+   • Click "Upload Images"
+   • Select folder: videos/frames/
+   • Select all .jpg files
+   • Start upload
+   • Wait for completion (15-30 min)
+
+4. Annotate robots (the main work):
+   • Open first image in editor
+   • Click "Create Annotation"
+   • Draw bounding box around first robot
+   • Label: "robot"
+   • Draw box around next robot
+   • Continue for all robots in image
+   • Click "Save"
+   • Move to next image
+   
+   Tips:
+   - Make bounding boxes TIGHT (close to robot edges)
+   - Include partial robots at image edges
+   - Use keyboard shortcuts for speed
+   - After first 20, you'll get much faster!
+   - Take a break every 50 images
+
+5. Goal: Annotate 300-500 images
+   • Can skip some very similar frames
+   • Prioritize variety (different distances, angles)
+   • Estimate: ~3-5 seconds per robot × 2-3 robots/image
+   • = ~2 hours for 500 images
+
+6. After annotation:
+   • All images should be labeled
+   • Click "Generate Dataset"
+   • Select "YOLOv8" format
+   • Choose "Auto-Augment"
+   • Click "Generate"
+   • Wait for processing (2-5 min)
+
+7. Download dataset:
+   • Click "Download"
+   • Extract zip file: dataset.zip
+   • Unzip to: dataset/
+
+8. Verify structure:
+   ls dataset/
+   # Should show: images/, labels/, data.yaml
+
+
+WEEK 1 - TUESDAY EVENING (Training)
+────────────────────────────────────
+
+Train your custom model:
+
+1. Verify dataset:
+   python -c "from train_detector import verify_dataset_structure; verify_dataset_structure('dataset')"
+   
+   Output should be:
+   ✓ Found: images/train
+   ✓ Found: images/val
+   ✓ Found: images/test
+   ✓ Found: labels/train
+   ✓ Found: labels/val
+   ✓ Found: labels/test
+   ✓ Found: data.yaml
+   
+   ✅ Dataset structure is valid!
+
+2. Start training:
+   python train_detector.py train
+   
+   What happens:
+   • Loads YOLOv8 medium model (yolov8m.pt)
+   • Begins training on your dataset
+   • Shows progress each epoch
+   • Automatically saves best model
+   • Stops when no improvement (early stopping)
+
+3. Watch training progress:
+   
+   Sample output:
+   Epoch 1/100: 100% |████████| 47/47 [00:45<00:00, 0.96s/it]
+                Class   Images  Instances  Box(P    R    mAP50  mAP50-95): 0.647  0.512  0.567  0.301
+   
+   Epoch 2/100: 100% |████████| 47/47 [00:42<00:00, 0.89s/it]
+                Class   Images  Instances  Box(P    R    mAP50  mAP50-95): 0.751  0.623  0.681  0.412
+   
+   • mAP50 should increase each epoch
+   • Training typically finishes in 30-100 epochs
+   • GPU: 30 min - 1 hour
+   • CPU: 1-4 hours
+
+4. Training completes:
+   Training complete!
+   Best model: runs/detect/robot_detector/weights/best.pt
+   
+   ✓ Model saved automatically
+   ✓ Copy to models/yolov8_robots.pt
+
+5. Check results:
+   ls -lh models/yolov8_robots.pt
+   # Should be 100-200 MB
+
+6. Evaluate performance:
+   python train_detector.py evaluate
+   
+   Output:
+   Validation Results:
+     mAP50: 0.923
+     mAP50-95: 0.718
+     Precision: 0.887
+     Recall: 0.902
+   
+   Interpretation:
+   • mAP50 > 0.85: Excellent! ✓
+   • mAP50 > 0.80: Good, ready to use ✓
+   • mAP50 > 0.70: Okay, but watch accuracy
+   • mAP50 < 0.70: Needs improvement
+
+7. Test on video:
+   python train_detector.py test videos/raw/week0_match1.mp4
+   
+   This will:
+   ✓ Run inference on the video
+   ✓ Draw bounding boxes on detections
+   ✓ Save annotated video
+   
+   Watch the output and verify:
+   ✓ Detects all robots
+   ✓ Confidence scores are high
+   ✓ Few false positives
+
+
+WEEK 1 - TUESDAY-WEDNESDAY (Integration)
+───────────────────────────────────────
+
+Update your app to use trained model:
+
+1. Edit app/robot_detector.py:
+   Replace the placeholder implementation with:
+
+   from ultralytics import YOLO
+   from app.tracker import RobotDetection
+   
+   class RobotDetector:
+       def __init__(self, model_path: str = "models/yolov8_robots.pt"):
+           self.model = YOLO(model_path)
+       
+       def detect(self, frame, confidence_threshold: float = 0.5):
+           results = self.model(frame, conf=confidence_threshold, verbose=False)
+           detections = []
+           
+           for result in results:
+               for box in result.boxes:
+                   if box.conf[0] >= confidence_threshold:
+                       x1, y1, x2, y2 = box.xyxy[0]
+                       detections.append(RobotDetection(
+                           x1=float(x1), y1=float(y1),
+                           x2=float(x2), y2=float(y2),
+                           confidence=float(box.conf[0])
+                       ))
+           
+           return detections
+
+2. Update app/ui.py:
+   In ScoutingApp.__init__(), change:
+   
+   # OLD (placeholder):
+   # self.robot_detector = RobotDetector(model_path=None)
+   
+   # NEW (use trained model):
+   self.robot_detector = RobotDetector(model_path='models/yolov8_robots.pt')
+
+3. Test the app:
+   python main.py
+   
+   In UI:
+   • Select camera
+   • Start camera
+   • Enable "Robot tracking"
+   • Verify detection overlay on live video
+   • Check tracking IDs stay consistent
+
+4. Test on Week 0 footage:
+   python main.py
+   
+   • Load video file instead of camera
+   • Play video
+   • Verify detection and tracking work
+   • Watch IDs maintained throughout video
+
+
+READY FOR DEPLOYMENT! 🎉
+═════════════════════════════════════════════════════════════════════════════════
+
+At this point you have:
+
+✅ models/yolov8_robots.pt
+   └─ Trained on YOUR FRC footage
+   └─ Custom detector for your robots/teams
+
+✅ app/robot_detector.py
+   └─ Integrated YOLO inference
+   └─ Returns RobotDetection objects
+
+✅ app/tracker.py (already built)
+   └─ Maintains 6 consistent robot IDs
+   └─ Prevents ID swaps
+
+✅ app/ui.py (updated)
+   └─ Uses real detector
+   └─ Shows tracking overlay
+
+Ready to use at your next event!
+
+
+TIPS FOR SUCCESS
+═════════════════════════════════════════════════════════════════════════════════
+
+Recording footage:
+  • Film at least 5 different matches
+  • Vary: times of day, lighting, team compositions
+  • Position camera so bumpers are visible
+  • Use tripod for steady footage
+  • Avoid recording only your alliance
+
+Annotation quality:
+  • Draw tight bounding boxes
+  • Include partial robots at edges
+  • Be consistent in your labeling
+  • Double-check difficult images
+  • Don't skip too many frames
+
+Training optimization:
+  • Start with 300-500 annotated images
+  • If accuracy is low, get more data
+  • Train for more epochs if improving steadily
+  • Use GPU if available (much faster)
+  • Save checkpoints every 10 epochs
+
+Troubleshooting:
+  • Low accuracy? More training data needed
+  • Slow training? Reduce batch size or epochs
+  • Can't extract frames? Check videos exist
+  • Can't annotate? Check Roboflow upload complete
+  • Integration fails? Verify model path exists
+
+
+UPDATING THE MODEL AS SEASON PROGRESSES
+═════════════════════════════════════════════════════════════════════════════════
+
+Keep improving your model:
+
+Week 1 (initial training):
+  ✓ Train on Week 0 footage
+  ✓ Get baseline accuracy
+
+Week 2-3:
+  • Record more matches
+  • Add new annotated frames to dataset
+  • Retrain model
+  • Should improve slightly
+
+Weeks 4-6:
+  • Accumulate more data
+  • Retrain every 2 weeks
+  • Model becomes increasingly accurate
+  • Handles more teams/variations
+
+By playoffs:
+  • Excellent model (trained on 50+ matches)
+  • High accuracy across all teams
+  • Best performance when it matters!
+
+To retrain:
+  1. Annotate new frames from recent footage
+  2. Add to existing dataset/
+  3. Run: python train_detector.py train
+  4. Model retrains on ALL data (old + new)
+  5. Performance improves!
+
+
+QUICK COMMAND REFERENCE
+═════════════════════════════════════════════════════════════════════════════════
+
+Activate environment:
+  set -x VIRTUAL_ENV (pwd)/.venv && set -x PATH $VIRTUAL_ENV/bin $PATH
+
+Extract frames from video files:
+  python train_detector.py extract
+
+Verify dataset structure:
+  python -c "from train_detector import verify_dataset_structure; verify_dataset_structure('dataset')"
+
+Train model on dataset:
+  python train_detector.py train
+
+Evaluate trained model:
+  python train_detector.py evaluate
+
+Test model on video file:
+  python train_detector.py test VIDEOFILE
+
+Run app with trained model:
+  python main.py
+
+
+TIMELINE CHECKLIST
+═════════════════════════════════════════════════════════════════════════════════
+
+Week 0 (Friday/Saturday):
+  ☐ Record 5-10 matches
+  ☐ Save to videos/raw/
+
+Week 1 (Monday):
+  ☐ Extract frames (5 min)
+  ☐ Start annotation (ongoing)
+
+Week 1 (Tuesday):
+  ☐ Finish annotation (1000+ robots labeled)
+  ☐ Generate dataset on Roboflow
+  ☐ Download and extract
+
+Week 1 (Tuesday evening):
+  ☐ Train model (30 min - 2 hours)
+  ☐ Evaluate accuracy
+  ☐ Test on video
+
+Week 1 (Wednesday):
+  ☐ Integrate into app
+  ☐ Test on live camera
+  ☐ Ready for next event!
+
+Total time: 2-4 hours of active work
+Result: Production-ready FRC robot detector! 🚀
