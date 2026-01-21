@@ -43,10 +43,23 @@ class ScoutingApp:
         trained_model = cfg.model_path_preferred
         actual_model = trained_model if os.path.exists(trained_model) else cfg.model_path_fallback
         self.model_loaded = actual_model
+        
+        # Get list of available models
+        models_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
+        self.available_models = []
+        if os.path.exists(models_dir):
+            self.available_models = sorted([f for f in os.listdir(models_dir) if f.endswith(".pt") and not f.startswith(".")])
+        
+        # Also include base models in root directory
+        root_dir = os.path.dirname(os.path.dirname(__file__))
+        for base_model in ["yolov8n.pt", "yolov8m.pt"]:
+            if os.path.exists(os.path.join(root_dir, base_model)):
+                self.available_models.insert(0, f"../{base_model}")
+        
         self.robot_detector = RobotDetector(model_path=actual_model, device=cfg.ultralytics_device)
         self.ultralytics_device = self.robot_detector.device
         # UI var to show which model is loaded
-        self.model_var = tk.StringVar(value=f"Model: {os.path.basename(actual_model)}")
+        self.model_var = tk.StringVar(value=os.path.basename(actual_model))
 
         # BoT-SORT tracker via Ultralytics
         self.botsort_tracker = BoTSORTTracker(
@@ -158,8 +171,13 @@ class ScoutingApp:
         ttk.Checkbutton(box, text="Robot tracking overlay", variable=self.enable_robot_tracking)\
             .pack(anchor="w", padx=8, pady=(0, 8))
 
-        # Show which model is currently loaded
-        ttk.Label(box, textvariable=self.model_var).pack(anchor="w", padx=8, pady=(0, 4))
+        # Model selection
+        model_row = ttk.Frame(box)
+        model_row.pack(fill=tk.X, padx=8, pady=(0, 4))
+        ttk.Label(model_row, text="Model:").pack(side=tk.LEFT)
+        self.model_combo = ttk.Combobox(model_row, textvariable=self.model_var, state="readonly", values=self.available_models, width=30)
+        self.model_combo.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 0))
+        self.model_combo.bind("<<ComboboxSelected>>", self._on_model_selected)
 
         row = ttk.Frame(box)
         row.pack(fill=tk.X, padx=8, pady=(0, 8))
@@ -266,6 +284,54 @@ class ScoutingApp:
             return
         self.selected_cam_index = self.available_cams[idx]
         self.status_var.set(f"Selected camera {self.selected_cam_index}")
+
+    def _on_model_selected(self, _evt=None) -> None:
+        """Handle model selection change."""
+        import os
+        selected_model = self.model_var.get()
+        if not selected_model:
+            return
+        
+        # Build full path to model
+        if selected_model.startswith("../"):
+            # Base model in root directory
+            model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), selected_model[3:])
+        else:
+            # Model in models directory
+            model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", selected_model)
+        
+        if not os.path.exists(model_path):
+            messagebox.showerror("Model Error", f"Model file not found: {model_path}")
+            return
+        
+        try:
+            self.status_var.set(f"Loading model {selected_model}...")
+            self.root.update_idletasks()
+            
+            # Stop camera if running
+            was_running = self.vs.is_running
+            if was_running:
+                self._stop_camera()
+            
+            # Reload detector with new model
+            self.robot_detector = RobotDetector(model_path=model_path, device=self.ultralytics_device)
+            self.model_loaded = model_path
+            
+            # Reinitialize tracker with new model
+            self.botsort_tracker = BoTSORTTracker(
+                yolo_model=self.robot_detector.model,
+                tracker_yaml=Config.get().ultralytics_tracker_yaml,
+            )
+            
+            # Update video processor with new model
+            self.video_processor = VideoProcessor(model_path=model_path, device=self.ultralytics_device)
+            
+            self.status_var.set(f"Model loaded: {selected_model}")
+            messagebox.showinfo("Model Changed", f"Successfully loaded: {selected_model}")
+            
+        except Exception as e:
+            messagebox.showerror("Model Error", f"Failed to load model: {e}")
+            self.status_var.set("Model load failed.")
 
     def _start_camera(self) -> None:
         if self.selected_cam_index is None:
