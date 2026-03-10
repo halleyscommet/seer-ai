@@ -29,6 +29,8 @@ runs/
 runs_*/
 videos/
 dataset/
-dataset_*/
 cache/
 preannotations/
+dataset.zip
+
+models/
