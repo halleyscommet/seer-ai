@@ -28,7 +28,7 @@ archive/
 runs/
 runs_*/
 videos/
-dataset/
+dataset/*/
 cache/
 preannotations/
 dataset.zip
