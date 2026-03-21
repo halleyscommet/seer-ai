@@ -52,7 +52,7 @@ FOLDERS = [
     "yolo_dataset (2)",
     "yolo_dataset (3)",
     "yolo_dataset (4)",
-    "yolo_dataset (5)",
+    # "yolo_dataset (5)",
 ]
 # ──────────────────────────────────────────────────────────────────────────────
 
